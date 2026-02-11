@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrbitNav - GPS Restricted Navigation</title>
+    
+    <!-- Leaflet.js CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <style>
+        /* ============================================
+           ORBITNAV - ASTRONOMY DARK THEME STYLES
+           ============================================ */
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #000000 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Starfield Background Effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 130px 80px, #fff, rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        /* Header Section */
+        .header {
+            background: rgba(10, 14, 39, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00ffff, #0080ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        
+        .test-mode-badge {
+            display: inline-block;
+            background: rgba(255, 0, 128, 0.2);
+            border: 1px solid #ff0080;
+            color: #ff0080;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 5px #ff0080; }
+            50% { opacity: 0.7; box-shadow: 0 0 20px #ff0080; }
+        }
+        
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            height: calc(100vh - 120px);
+        }
+        
+        /* Sidebar Control Panel */
+        .control-panel {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        
+        .panel-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel-section:last-child {
+            border-bottom: none;
+        }
+        
+        .panel-title {
+            color: #00ffff;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel-title::before {
+            content: '◆';
+            color: #0080ff;
+        }
+        
+        /* GPS Status Indicator */
+        .gps-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border-left: 3px solid #ff4444;
+            transition: all 0.3s ease;
+        }
+        
+        .gps-status.active {
+            border-left-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            box-shadow: 0 0 10px #ff4444;
+            animation: blink 1.5s infinite;
+        }
+        
+        .gps-status.active .status-dot {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .status-text {
+            font-size: 0.9rem;
+            color: #8892b0;
+        }
+        
+        .gps-status.active .status-text {
+            color: #00ff88;
+        }
+        
+        /* Coordinates Display */
+        .coords-display {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #64ffda;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            word-break: break-all;
+        }
+        
+        /* Location Selector */
+        .location-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .location-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .location-item:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: rgba(0, 255, 255, 0.3);
+            transform: translateX(5px);
+        }
+        
+        .location-item.selected {
+            background: rgba(0, 128, 255, 0.2);
+            border-color: #0080ff;
+            box-shadow: 0 0 15px rgba(0, 128, 255, 0.3);
+        }
+        
+        .location-item.restricted {
+            opacity: 0.5;
+            border-color: #ff4444;
+        }
+        
+        .location-item.restricted::after {
+            content: '⚠ OUT OF RANGE';
+            color: #ff4444;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        
+        .location-name {
+            font-weight: 500;
+            color: #e0e6ed;
+        }
+        
+        .location-dist {
+            font-size: 0.8rem;
+            color: #8892b0;
+        }
+        
+        /* Distance Calculator Display */
+        .distance-display {
+            background: linear-gradient(135deg, rgba(0, 128, 255, 0.2), rgba(0, 255, 255, 0.1));
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .distance-label {
+            font-size: 0.8rem;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .distance-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            margin: 10px 0;
+        }
+        
+        .distance-unit {
+            font-size: 1rem;
+            color: #0080ff;
+        }
+        
+        .distance-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        .status-within {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+        
+        .status-outside {
+            background: rgba(255, 0, 128, 0.2);
+            color: #ff0080;
+            border: 1px solid #ff0080;
+        }
+        
+        /* Action Button */
+        .nav-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #0080ff, #00ffff);
+            border: none;
+            border-radius: 8px;
+            color: #0a0e27;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 10px;
+        }
+        
+        .nav-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.4);
+        }
+        
+        .nav-button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        /* Alert Box */
+        .alert-box {
+            background: rgba(255, 0, 128, 0.15);
+            border: 1px solid #ff0080;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .alert-box.show {
+            display: block;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .alert-title {
+            color: #ff0080;
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Map Container */
+        .map-container {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0a0e27;
+        }
+        
+        /* Map Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(10, 14, 39, 0.9);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend-marker {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .legend-user { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .legend-dest { background: #ff4444; box-shadow: 0 0 10px #ff4444; }
+        .legend-route { 
+            width: 20px; 
+            height: 3px; 
+            background: #00ffff; 
+            box-shadow: 0 0 10px #00ffff;
+            border-radius: 2px;
+        }
+        .legend-boundary {
+            width: 12px;
+            height: 12px;
+            border: 2px dashed rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            background: transparent;
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 14, 39, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(0, 255, 255, 0.1);
+            border-top-color: #00ffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: #00ffff;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 968px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            
+            .control-panel {
+                max-height: 40vh;
+            }
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>🛰️ OrbitNav</h1>
+        <div class="test-mode-badge">⚡ 5KM Test Mode Active</div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Control Panel -->
+        <aside class="control-panel">
+            <!-- GPS Status Section -->
+            <div class="panel-section">
+                <div class="panel-title">GPS Status</div>
+                <div class="gps-status" id="gpsStatus">
+                    <div class="status-dot"></div>
+                    <div class="status-text">Acquiring satellite lock...</div>
+                </div>
+                <div class="coords-display" id="coordsDisplay">
+                    Lat: --.----<br>
+                    Lng: --.----
+                </div>
+            </div>
+            
+            <!-- Destination Selection -->
+            <div class="panel-section">
+                <div class="panel-title">Select Destination</div>
+                <div class="location-list" id="locationList">
+                    <!-- Locations injected by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Distance Calculator -->
+            <div class="panel-section">
+                <div class="panel-title">Distance Analysis</div>
+                <div class="distance-display" id="distanceDisplay" style="display: none;">
+                    <div class="distance-label">Distance to Target</div>
+                    <div class="distance-value" id="distanceValue">0.00</div>
+                    <div class="distance-unit">kilometers</div>
+                    <div class="distance-status" id="distanceStatus">Calculating...</div>
+                </div>
+                
+                <div class="alert-box" id="alertBox">
+                    <div class="alert-title">⚠️ Navigation Restricted</div>
+                    <div>Destination outside 5KM test boundary. Select a closer location.</div>
+                </div>
+                
+                <button class="nav-button" id="navButton" disabled>
+                    Initialize Navigation
+                </button>
+            </div>
+            
+            <!-- Instructions -->
+            <div class="panel-section" style="font-size: 0.85rem; color: #8892b0; line-height: 1.6;">
+                <div class="panel-title">System Info</div>
+                <p>• Green marker: Your position</p>
+                <p>• Red markers: Destinations</p>
+                <p>• Blue line: Active route</p>
+                <p>• Dashed circle: 5KM boundary</p>
+            </div>
+        </aside>
+        
+        <!-- Map Container -->
+        <main class="map-container">
+            <div id="map"></div>
+            
+            <!-- Map Legend -->
+            <div class="map-legend">
+                <div class="legend-item">
+                    <div class="legend-marker legend-user"></div>
+                    <span>You</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-marker legend-dest"></div>
+                    <span>Destination</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-route"></div>
+                    <span>Route</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-marker legend-boundary"></div>
+                    <span>5KM Boundary</span>
+                </div>
+            </div>
+            
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+                <div class="loading-text">INITIALIZING ORBITNAV...</div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        /**
+         * ============================================
+         * ORBITNAV - GPS RESTRICTED NAVIGATION SYSTEM
+         * ============================================
+         * 
+         * Features:
+         * - Live GPS tracking via Browser Geolocation API
+         * - Haversine formula for accurate distance calculation
+         * - 5KM boundary restriction enforcement
+         * - OSRM routing integration
+         * - Leaflet.js visualization
+         */
+
+        // ==========================================
+        // DATASET - Predefined Locations (Chennai)
+        // ==========================================
+        const LOCATIONS = [
+            { name: "Egmore Station", distance: 1.5, lat: 13.0815, lng: 80.2605 },
+            { name: "Fort St. George (Secretariat)", distance: 2.5, lat: 13.0796, lng: 80.2875 },
+            { name: "Marina Beach (Light House)", distance: 4.0, lat: 13.0436, lng: 80.2793 },
+            { name: "Nungambakkam", distance: 4.5, lat: 13.0587, lng: 80.2476 },
+            { name: "George Town (Parrys)", distance: 2.0, lat: 13.0906, lng: 80.2885 },
+            { name: "T. Nagar (Panagal Park)", distance: 6.5, lat: 13.0402, lng: 80.2341 },
+            { name: "Anna Nagar (Roundtana)", distance: 7.5, lat: 13.0850, lng: 80.2101 },
+            { name: "Adyar (Gandhi Nagar)", distance: 9.0, lat: 13.0064, lng: 80.2575 },
+            { name: "Guindy (Kathipara)", distance: 10.0, lat: 13.0067, lng: 80.2206 }
+        ];
+
+        // Configuration
+        const CONFIG = {
+            MAX_DISTANCE_KM: 5,        // 5KM test boundary
+            EARTH_RADIUS_KM: 6371,      // Earth's radius for Haversine
+            DEFAULT_CENTER: [13.0827, 80.2707], // Chennai center fallback
+            ZOOM_LEVEL: 13
+        };
+
+        // State Management
+        const state = {
+            userPosition: null,         // Current GPS coordinates
+            selectedDestination: null,  // Selected location object
+            map: null,                  // Leaflet map instance
+            markers: {},                // Store markers
+            routeLayer: null,           // Current route polyline
+            boundaryCircle: null,       // 5KM radius circle
+            isNavigating: false         // Navigation active flag
+        };
+
+        // ==========================================
+        // HAVERSINE FORMULA - Distance Calculation
+        // ==========================================
+        /**
+         * Calculates the great-circle distance between two points on Earth
+         * specified in decimal degrees (latitude/longitude).
+         * 
+         * Formula: a = sin²(Δφ/2) + cos φ1 ⋅ cos φ2 ⋅ sin²(Δλ/2)
+         *          c = 2 ⋅ atan2(√a, √(1−a))
+         *          d = R ⋅ c
+         * 
+         * Where φ is latitude, λ is longitude, R is Earth's radius
+         * 
+         * @param {number} lat1 - Latitude of point 1 in degrees
+         * @param {number} lon1 - Longitude of point 1 in degrees
+         * @param {number} lat2 - Latitude of point 2 in degrees
+         * @param {number} lon2 - Longitude of point 2 in degrees
+         * @returns {number} Distance in kilometers
+         */
+        function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+            // Convert decimal degrees to radians
+            const toRadians = (degrees) => degrees * (Math.PI / 180);
+            
+            const φ1 = toRadians(lat1);
+            const φ2 = toRadians(lat2);
+            const Δφ = toRadians(lat2 - lat1);
+            const Δλ = toRadians(lon2 - lon1);
+            
+            // Haversine formula
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            
+            // Distance in kilometers
+            const distance = CONFIG.EARTH_RADIUS_KM * c;
+            
+            return distance;
+        }
+
+        // ==========================================
+        // GEOLOCATION API - User Position Detection
+        // ==========================================
+        /**
+         * Initializes the browser Geolocation API to track user's live position.
+         * Uses watchPosition for continuous updates with high accuracy.
+         * Falls back to default coordinates if permission denied.
+         */
+        function initGeolocation() {
+            const gpsStatus = document.getElementById('gpsStatus');
+            const coordsDisplay = document.getElementById('coordsDisplay');
+            
+            if (!navigator.geolocation) {
+                updateGPSStatus('error', 'Geolocation not supported');
+                // Fallback to default
+                state.userPosition = { lat: CONFIG.DEFAULT_CENTER[0], lng: CONFIG.DEFAULT_CENTER[1] };
+                initMap();
+                return;
+            }
+            
+            // Options for high accuracy
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+            
+            // Success callback - position acquired
+            const successCallback = (position) => {
+                const { latitude, longitude, accuracy } = position.coords;
+                
+                state.userPosition = {
+                    lat: latitude,
+                    lng: longitude,
+                    accuracy: accuracy
+                };
+                
+                // Update UI
+                updateGPSStatus('active', `GPS Active • Accuracy: ${Math.round(accuracy)}m`);
+                coordsDisplay.innerHTML = `
+                    Lat: ${latitude.toFixed(6)}<br>
+                    Lng: ${longitude.toFixed(6)}
+                `;
+                
+                // Initialize or update map
+                if (!state.map) {
+                    initMap();
+                } else {
+                    updateUserMarker();
+                    updateBoundaryCircle();
+                }
+                
+                // Check distances to all locations
+                updateLocationDistances();
+                
+                // Hide loading overlay on first fix
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            };
+            
+            // Error callback - handle permissions/errors
+            const errorCallback = (error) => {
+                let message = 'GPS Error';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        message = "Permission denied • Using fallback";
+                        // Use default Chennai center
+                        state.userPosition = { 
+                            lat: CONFIG.DEFAULT_CENTER[0], 
+                            lng: CONFIG.DEFAULT_CENTER[1] 
+                        };
+                        initMap();
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        message = "Position unavailable";
+                        break;
+                    case error.TIMEOUT:
+                        message = "GPS timeout";
+                        break;
+                }
+                updateGPSStatus('error', message);
+            };
+            
+            // Start watching position
+            navigator.geolocation.watchPosition(successCallback, errorCallback, options);
+            
+            // Also get immediate position
+            navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options);
+        }
+
+        /**
+         * Updates the GPS status indicator in the UI
+         */
+        function updateGPSStatus(status, message) {
+            const gpsStatus = document.getElementById('gpsStatus');
+            const statusText = gpsStatus.querySelector('.status-text');
+            
+            statusText.textContent = message;
+            
+            if (status === 'active') {
+                gpsStatus.classList.add('active');
+            } else {
+                gpsStatus.classList.remove('active');
+            }
+        }
+
+        // ==========================================
+        // LEAFLET MAP INITIALIZATION
+        // ==========================================
+        /**
+         * Initializes the Leaflet.js map with OpenStreetMap tiles.
+         * Sets up dark-themed map container and adds initial layers.
+         */
+        function initMap() {
+            // Create map instance centered on user position
+            state.map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView(
+                [state.userPosition.lat, state.userPosition.lng], 
+                CONFIG.ZOOM_LEVEL
+            );
+            
+            // Add zoom control to top-right
+            L.control.zoom({ position: 'topright' }).addTo(state.map);
+            
+            // Add OpenStreetMap tiles with dark theme filter
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(state.map);
+            
+            // Apply dark theme to tiles via CSS filter
+            document.querySelector('.leaflet-tile-pane').style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)';
+            
+            // Add user marker
+            updateUserMarker();
+            
+            // Add boundary circle (5KM radius)
+            updateBoundaryCircle();
+            
+            // Add destination markers
+            addDestinationMarkers();
+        }
+
+        /**
+         * Updates or creates the user position marker (green)
+         */
+        function updateUserMarker() {
+            if (state.markers.user) {
+                state.map.removeLayer(state.markers.user);
+            }
+            
+            // Custom green marker for user
+            const userIcon = L.divIcon({
+                className: 'custom-user-marker',
+                html: `<div style="
+                    width: 20px; 
+                    height: 20px; 
+                    background: #00ff88; 
+                    border-radius: 50%; 
+                    border: 3px solid #0a0e27;
+                    box-shadow: 0 0 20px #00ff88;
+                "></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            
+            state.markers.user = L.marker(
+                [state.userPosition.lat, state.userPosition.lng],
+                { icon: userIcon, zIndexOffset: 1000 }
+            ).addTo(state.map).bindPopup('<b>Your Position</b>');
+        }
+
+        /**
+         * Updates or creates the 5KM boundary circle
+         */
+        function updateBoundaryCircle() {
+            if (state.boundaryCircle) {
+                state.map.removeLayer(state.boundaryCircle);
+            }
+            
+            state.boundaryCircle = L.circle(
+                [state.userPosition.lat, state.userPosition.lng],
+                {
+                    radius: CONFIG.MAX_DISTANCE_KM * 1000, // Convert to meters
+                    color: 'rgba(0, 255, 255, 0.8)',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillColor: 'rgba(0, 255, 255, 0.05)',
+                    fillOpacity: 0.3,
+                    dashArray: '10, 10'
+                }
+            ).addTo(state.map);
+        }
+
+        /**
+         * Adds all predefined location markers to the map (red)
+         */
+        function addDestinationMarkers() {
+            // Custom red marker for destinations
+            const destIcon = L.divIcon({
+                className: 'custom-dest-marker',
+                html: `<div style="
+                    width: 16px; 
+                    height: 16px; 
+                    background: #ff4444; 
+                    border-radius: 50%; 
+                    border: 2px solid #0a0e27;
+                    box-shadow: 0 0 15px #ff4444;
+                    cursor: pointer;
+                "></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            
+            LOCATIONS.forEach((location, index) => {
+                const marker = L.marker(
+                    [location.lat, location.lng],
+                    { icon: destIcon }
+                ).addTo(state.map);
+                
+                marker.bindPopup(`<b>${location.name}</b><br>Click to select`);
+                marker.on('click', () => selectLocation(index));
+                
+                state.markers[`dest_${index}`] = marker;
+            });
+        }
+
+        // ==========================================
+        // UI CONTROLS - Location Selection
+        // ==========================================
+        /**
+         * Renders the location list in the sidebar
+         */
+        function renderLocationList() {
+            const listContainer = document.getElementById('locationList');
+            listContainer.innerHTML = '';
+            
+            LOCATIONS.forEach((location, index) => {
+                const item = document.createElement('div');
+                item.className = 'location-item';
+                item.dataset.index = index;
+                item.onclick = () => selectLocation(index);
+                
+                item.innerHTML = `
+                    <div>
+                        <div class="location-name">${location.name}</div>
+                        <div class="location-dist">Dataset: ${location.distance} km</div>
+                    </div>
+                `;
+                
+                listContainer.appendChild(item);
+            });
+        }
+
+        /**
+         * Updates distance calculations for all locations
+         * and marks restricted ones (>5KM)
+         */
+        function updateLocationDistances() {
+            if (!state.userPosition) return;
+            
+            const items = document.querySelectorAll('.location-item');
+            
+            LOCATIONS.forEach((location, index) => {
+                // Calculate real distance using Haversine
+                const distance = calculateHaversineDistance(
+                    state.userPosition.lat,
+                    state.userPosition.lng,
+                    location.lat,
+                    location.lng
+                );
+                
+                const item = items[index];
+                const distDiv = item.querySelector('.location-dist');
+                
+                // Update displayed distance
+                distDiv.textContent = `Live: ${distance.toFixed(2)} km • Dataset: ${location.distance} km`;
+                
+                // Mark as restricted if > 5KM
+                if (distance > CONFIG.MAX_DISTANCE_KM) {
+                    item.classList.add('restricted');
+                } else {
+                    item.classList.remove('restricted');
+                }
+            });
+        }
+
+        /**
+         * Handles location selection from list or map
+         */
+        function selectLocation(index) {
+            const location = LOCATIONS[index];
+            
+            // Update UI selection
+            document.querySelectorAll('.location-item').forEach((item, i) => {
+                if (i === index) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+            
+            // Calculate current distance
+            const distance = calculateHaversineDistance(
+                state.userPosition.lat,
+                state.userPosition.lng,
+                location.lat,
+                location.lng
+            );
+            
+            state.selectedDestination = {
+                ...location,
+                currentDistance: distance
+            };
+            
+            // Update distance display
+            updateDistanceDisplay(distance);
+            
+            // Pan map to destination
+            state.map.panTo([location.lat, location.lng]);
+            
+            // Open popup on marker
+            state.markers[`dest_${index}`].openPopup();
+        }
+
+        /**
+         * Updates the distance display panel and restriction logic
+         */
+        function updateDistanceDisplay(distance) {
+            const display = document.getElementById('distanceDisplay');
+            const value = document.getElementById('distanceValue');
+            const status = document.getElementById('distanceStatus');
+            const alertBox = document.getElementById('alertBox');
+            const navButton = document.getElementById('navButton');
+            
+            display.style.display = 'block';
+            value.textContent = distance.toFixed(2);
+            
+            if (distance <= CONFIG.MAX_DISTANCE_KM) {
+                // Within boundary - allow navigation
+                status.textContent = '✓ Within 5KM Boundary';
+                status.className = 'distance-status status-within';
+                alertBox.classList.remove('show');
+                navButton.disabled = false;
+                navButton.textContent = 'Initialize Navigation';
+            } else {
+                // Outside boundary - restrict
+                status.textContent = '✗ Outside 5KM Boundary';
+                status.className = 'distance-status status-outside';
+                alertBox.classList.add('show');
+                navButton.disabled = true;
+                navButton.textContent = 'Navigation Locked';
+                
+                // Clear any existing route
+                clearRoute();
+            }
+        }
+
+        // ==========================================
+        // ROUTING - OSRM API Integration
+        // ==========================================
+        /**
+         * Fetches route from OSRM public API and renders on map.
+         * OSRM returns GeoJSON format for easy Leaflet integration.
+         * 
+         * API Endpoint: router.project-osrm.org/route/v1/driving/
+         * Parameters: 
+         *   - coordinates: {lon},{lat};{lon},{lat}
+         *   - overview=full: Full geometry detail
+         *   - geometries=geojson: Return as GeoJSON
+         */
+        async function fetchAndRenderRoute() {
+            if (!state.selectedDestination || !state.userPosition) return;
+            
+            const navButton = document.getElementById('navButton');
+            navButton.textContent = 'Calculating Route...';
+            navButton.disabled = true;
+            
+            const { lat: destLat, lng: destLng } = state.selectedDestination;
+            const { lat: userLat, lng: userLng } = state.userPosition;
+            
+            // OSRM expects coordinates in lon,lat format
+            const url = `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+                    throw new Error('No route found');
+                }
+                
+                const route = data.routes[0];
+                const geometry = route.geometry;
+                
+                // Render the route polyline (neon blue)
+                renderRouteLine(geometry);
+                
+                // Update button
+                navButton.textContent = 'Navigation Active';
+                navButton.style.background = 'linear-gradient(135deg, #00ff88, #00cc6a)';
+                
+                // Show route info
+                const duration = Math.round(route.duration / 60); // seconds to minutes
+                const distance = (route.distance / 1000).toFixed(2); // meters to km
+                
+                // Fit map to show entire route
+                const bounds = L.geoJSON(geometry).getBounds();
+                state.map.fitBounds(bounds, { padding: [50, 50] });
+                
+                // Show success notification
+                showNotification(`Route: ${distance} km • ${duration} mins`);
+                
+            } catch (error) {
+                console.error('Routing error:', error);
+                navButton.textContent = 'Route Error - Retry';
+                navButton.disabled = false;
+                showNotification('Failed to calculate route. Please try again.');
+            }
+        }
+
+        /**
+         * Renders the route polyline on the map using GeoJSON coordinates
+         * Converts [lon, lat] from OSRM to [lat, lon] for Leaflet
+         */
+        function renderRouteLine(geojsonGeometry) {
+            // Clear existing route
+            clearRoute();
+            
+            // OSRM returns coordinates as [longitude, latitude]
+            // Leaflet expects [latitude, longitude]
+            const latlngs = geojsonGeometry.coordinates.map(coord => [coord[1], coord[0]]);
+            
+            // Create neon blue polyline with glow effect
+            state.routeLayer = L.polyline(latlngs, {
+                color: '#00ffff',
+                weight: 5,
+                opacity: 0.9,
+                lineCap: 'round',
+                lineJoin: 'round',
+                dashArray: null
+            }).addTo(state.map);
+            
+            // Add a second wider, more transparent line for glow effect
+            L.polyline(latlngs, {
+                color: '#00ffff',
+                weight: 12,
+                opacity: 0.3,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(state.map).bringToBack();
+        }
+
+        /**
+         * Clears the current route from the map
+         */
+        function clearRoute() {
+            if (state.routeLayer) {
+                state.map.removeLayer(state.routeLayer);
+                state.routeLayer = null;
+            }
+        }
+
+        /**
+         * Shows temporary notification
+         */
+        function showNotification(message) {
+            // Create notification element
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed;
+                top: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 255, 255, 0.9);
+                color: #0a0e27;
+                padding: 15px 30px;
+                border-radius: 8px;
+                font-weight: bold;
+                z-index: 3000;
+                box-shadow: 0 10px 30px rgba(0, 255, 255, 0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            
+            setTimeout(() => {
+                notif.style.opacity = '0';
+                setTimeout(() => notif.remove(), 300);
+            }, 3000);
+        }
+
+        // ==========================================
+        // EVENT LISTENERS & INITIALIZATION
+        // ==========================================
+        
+        // Navigation button click handler
+        document.getElementById('navButton').addEventListener('click', fetchAndRenderRoute);
+        
+        // Initialize application when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            renderLocationList();
+            initGeolocation();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (state.map) {
+                state.map.invalidateSize();
+            }
+        });
+    </script>
+</body>
+</html>

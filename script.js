@@ -2,16 +2,29 @@
 
 // Specified Dataset
 const destinations = [
-    { name: "Mauna Kea, USA", lat: 19.8206, lng: -155.4681 },
-    { name: "Atacama, Chile", lat: -24.6275, lng: -70.4044 },
-    { name: "Hanle, India", lat: 32.7794, lng: 78.9642 },
-    { name: "Aoraki, NZ", lat: -43.9858, lng: 170.4650 },
-    { name: "La Palma, Spain", lat: 28.7636, lng: -17.8947 },
-    { name: "NamibRand, Namibia", lat: -24.9530, lng: 15.9080 },
-    { name: "Pic du Midi, France", lat: 42.9369, lng: 0.1411 },
-    { name: "Natural Bridges, USA", lat: 37.6017, lng: -110.0105 },
-    { name: "Uluru, Australia", lat: -25.3444, lng: 131.0369 },
-    { name: "Cherry Springs, USA", lat: 41.6659, lng: -77.8236 }
+    // International Locations
+    { name: "Mauna Kea, USA", lat: 19.8206, lng: -155.4681, desc: "Home to the world's largest observatories." },
+    { name: "Atacama, Chile", lat: -24.6275, lng: -70.4044, desc: "High altitude desert with crystal clear skies." },
+    { name: "Hanle, India", lat: 32.7794, lng: 78.9642, desc: "Highest observatory in India." },
+    { name: "Aoraki, NZ", lat: -43.9858, lng: 170.4650, desc: "International Dark Sky Reserve." },
+    { name: "La Palma, Spain", lat: 28.7636, lng: -17.8947, desc: "Starlight Reserve in the Canary Islands." },
+    { name: "NamibRand, Namibia", lat: -24.9530, lng: 15.9080, desc: "First International Dark Sky Reserve in Africa." },
+    { name: "Pic du Midi, France", lat: 42.9369, lng: 0.1411, desc: "Famous observatory in the French Pyrenees." },
+    { name: "Natural Bridges, USA", lat: 37.6017, lng: -110.0105, desc: "First National Monument designated as a Dark Sky Park." },
+    { name: "Uluru, Australia", lat: -25.3444, lng: 131.0369, desc: "Sacred site with stunning southern sky views." },
+    { name: "Cherry Springs, USA", lat: 41.6659, lng: -77.8236, desc: "One of the best dark sky parks in the eastern US." },
+
+    // New Indian Locations
+    { name: "Vainu Bappu Observatory (Kavalur)", lat: 12.5767, lng: 78.8267, desc: "Home to one of Asia's largest telescopes. Located in the Jawadhu Hills, strict dark-sky area." },
+    { name: "Kodaikanal Solar Observatory", lat: 10.2322, lng: 77.4647, desc: "One of the oldest observatories. High altitude (2,300m+) above the haze." },
+    { name: "Berijam Lake (Kodaikanal)", lat: 10.1839, lng: 77.3994, desc: "Located deep within the reserve forest away from town lights." },
+    { name: "Yelagiri Hills", lat: 12.5781, lng: 78.6400, desc: "Popular for amateur astronomy camps. Accessible with dark skies." },
+    { name: "Kolli Hills (Kollimalai)", lat: 11.3181, lng: 78.3483, desc: "Mountain of Death. Treacherous hairpins keep light pollution low." },
+    { name: "Meghamalai (High Wavys)", lat: 9.7000, lng: 77.4000, desc: "Tiger Reserve area with tea estates. Minimal electricity ensures dark skies." },
+    { name: "Valparai", lat: 10.3278, lng: 76.9542, desc: "Anamalai Tiger Reserve. Tea estates offer wide open horizons." },
+    { name: "Mukurthi National Park", lat: 11.2667, lng: 76.4833, desc: "Strictly protected area in Nilgiris. Pitch black at night." },
+    { name: "Radio Astronomy Centre (Ooty)", lat: 11.3811, lng: 76.6658, desc: "Protected to prevent radio interference, correlating with low light pollution." },
+    { name: "Kalakkad Mundanthurai Tiger Reserve", lat: 8.6811, lng: 77.3178, desc: "Deep forest areas in Southern Western Ghats offer pristine dark skies." }
 ];
 
 // App State
@@ -126,6 +139,7 @@ function createPopupContent(dest) {
     return `
         <div class="popup-content">
             <div class="popup-title">${dest.name}</div>
+            <div class="popup-desc">${dest.desc || 'Excellent stargazing location.'}</div>
             <div class="popup-data">Coords: ${dest.lat.toFixed(4)}, ${dest.lng.toFixed(4)}</div>
             <div class="popup-data dist">${distString}</div>
             <a href="${googleMapsUrl}" target="_blank" class="btn-nav">Open in Google Maps</a>

@@ -1,62 +1,292 @@
 // --- Configuration & Data ---
 
-// Dataset provided by user
+// Specified Dataset
 const destinations = [
-    { name: "Egmore Station", lat: 13.0815, lng: 80.2605 },
-    { name: "Fort St. George (Secretariat)", lat: 13.0796, lng: 80.2875 },
-    { name: "Marina Beach (Light House)", lat: 13.0436, lng: 80.2793 },
-    { name: "Nungambakkam", lat: 13.0587, lng: 80.2476 },
-    { name: "George Town (Parrys)", lat: 13.0906, lng: 80.2885 },
-    { name: "T. Nagar (Panagal Park)", lat: 13.0402, lng: 80.2341 },
-    { name: "Anna Nagar (Roundtana)", lat: 13.0850, lng: 80.2101 },
-    { name: "Adyar (Gandhi Nagar)", lat: 13.0064, lng: 80.2575 },
-    { name: "Guindy (Kathipara)", lat: 13.0067, lng: 80.2206 }
+    { name: "Mauna Kea, USA", lat: 19.8206, lng: -155.4681 },
+    { name: "Atacama, Chile", lat: -24.6275, lng: -70.4044 },
+    { name: "Hanle, India", lat: 32.7794, lng: 78.9642 },
+    { name: "Aoraki, NZ", lat: -43.9858, lng: 170.4650 },
+    { name: "La Palma, Spain", lat: 28.7636, lng: -17.8947 },
+    { name: "NamibRand, Namibia", lat: -24.9530, lng: 15.9080 },
+    { name: "Pic du Midi, France", lat: 42.9369, lng: 0.1411 },
+    { name: "Natural Bridges, USA", lat: 37.6017, lng: -110.0105 },
+    { name: "Uluru, Australia", lat: -25.3444, lng: 131.0369 },
+    { name: "Cherry Springs, USA", lat: 41.6659, lng: -77.8236 }
 ];
 
-const MAX_DISTANCE_KM = 5.0;
+// App State
 let map;
 let userMarker;
-let destinationMarker;
 let routeLayer;
-let boundaryCircle;
-let allMarkersLayerGroup = L.layerGroup(); // To hold all markers when out of bounds
-
 let userLocation = { lat: null, lng: null };
+let markersMap = new Map(); // Store markers mapped by name for easy access
 
-// Custom Icons
-const greenIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+// --- Icons ---
+
+// Standard Leaflet markers with hue shift handled via CSS filter in style.css for dark mode compatibility
+// But we want specific "Glow" effects, so we stick to standard icons and styled CSS.
+const DefaultIcon = L.Icon.Default.extend({
+    options: {
+        className: 'custom-marker-icon'
+    }
 });
-
-const redIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
-
-const blueIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
-
+L.Icon.Default.imagePath = 'https://unpkg.com/leaflet@1.9.4/dist/images/';
 
 // --- Core Functions ---
 
-// Haversine Formula for distance calculation
+// 1. Initialization
+window.onload = () => {
+    initMap();
+    initSearch();
+};
+
+function initMap() {
+    // Initialize map centered on global view (or standard 0,0)
+    map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([20, 0], 2);
+
+    // Zoom Control Top Right
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Attribution
+    L.control.attribution({ position: 'bottomright' })
+        .addAttribution('&copy; OpenStreetMap | OrbitNav')
+        .addTo(map);
+
+    // Tiles (OpenStreetMap) -> Darkened by CSS
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        minZoom: 2
+    }).addTo(map);
+
+    // Add Destination Markers
+    addMarkers();
+
+    // Get User Position
+    getUserPosition();
+}
+
+// 2. Markers & Popups
+function addMarkers() {
+    destinations.forEach(dest => {
+        const marker = L.marker([dest.lat, dest.lng], { icon: new DefaultIcon() })
+            .addTo(map)
+            .bindTooltip(`${dest.name}<br><span style="color:#aaa; font-size:0.8em">${dest.lat.toFixed(2)}, ${dest.lng.toFixed(2)}</span>`, {
+                direction: 'top',
+                offset: [0, -40],
+                className: 'custom-tooltip' // We'll rely on default styled by theme
+            });
+
+        // Hover Effect: Enlarge
+        marker.on('mouseover', function (e) {
+            this.openTooltip();
+            this._icon.style.transform += ' scale(1.2)';
+            this._icon.style.filter = 'drop-shadow(0 0 15px #00f3ff)';
+        });
+
+        marker.on('mouseout', function (e) {
+            this.closeTooltip();
+            // Reset transform is handled by Leaflet usually resetting on map move, 
+            // but for CSS hover we used a class. 
+            // Reverting manual inline styles:
+            this._icon.style.transform = this._icon.style.transform.replace(' scale(1.2)', '');
+            this._icon.style.filter = '';
+        });
+
+        // Click: Show Card Popup
+        marker.on('click', () => {
+            const content = createPopupContent(dest);
+            marker.bindPopup(content, {
+                maxWidth: 300,
+                className: 'glass-popup'
+            }).openPopup();
+
+            // Trigger Route if user location exists
+            if (userLocation.lat) {
+                fetchRoute(dest);
+            }
+        });
+
+        markersMap.set(dest.name, marker);
+    });
+}
+
+function createPopupContent(dest) {
+    // Calculate distance if user location known
+    let distString = "Select to calc distance";
+    if (userLocation.lat) {
+        const d = calculateHaversineDistance(userLocation.lat, userLocation.lng, dest.lat, dest.lng);
+        distString = `${d.toFixed(0)} km away`;
+    }
+
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}`;
+
+    return `
+        <div class="popup-content">
+            <div class="popup-title">${dest.name}</div>
+            <div class="popup-data">Coords: ${dest.lat.toFixed(4)}, ${dest.lng.toFixed(4)}</div>
+            <div class="popup-data dist">${distString}</div>
+            <a href="${googleMapsUrl}" target="_blank" class="btn-nav">Open in Google Maps</a>
+        </div>
+    `;
+}
+
+// 3. User Geolocation
+function getUserPosition() {
+    if (!navigator.geolocation) {
+        console.warn("Geolocation not supported");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            userLocation.lat = pos.coords.latitude;
+            userLocation.lng = pos.coords.longitude;
+
+            // Green User Marker
+            const userIcon = new L.Icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+
+            if (userMarker) map.removeLayer(userMarker);
+
+            userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+                .addTo(map)
+                .bindPopup("<b>You Are Here</b>");
+
+            // Optional: Center on user initially? 
+            // User requested "Zoom map to location" on search, so we leave global view initially unless user is found.
+            // Let's pan to them gently.
+            map.flyTo([userLocation.lat, userLocation.lng], 5);
+        },
+        (err) => {
+            console.error("GPS Error:", err);
+            // Graceful degradation: App works without user location, just no distance/route
+        },
+        { enableHighAccuracy: true }
+    );
+}
+
+// 4. Routing (OSRM)
+async function fetchRoute(dest) {
+    if (!userLocation.lat) return;
+
+    // Remove old route
+    if (routeLayer) map.removeLayer(routeLayer);
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+            console.warn("No drivable route found (likely across ocean).");
+            return;
+        }
+
+        routeLayer = L.geoJSON(data.routes[0].geometry, {
+            style: {
+                color: '#00f3ff', // Neon Cyan
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '5, 10',
+                lineCap: 'round'
+            }
+        }).addTo(map);
+
+        // Fit bounds to show route
+        map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+
+    } catch (e) {
+        console.error("Routing API failed or blocked", e);
+    }
+}
+
+// 5. Search Logic (Live Typing + Autocomplete)
+function initSearch() {
+    const input = document.getElementById('search-input');
+    const resultsContainer = document.getElementById('search-results');
+
+    input.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+
+        if (query.length === 0) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        // Filter
+        const matches = destinations.filter(d => d.name.toLowerCase().includes(query));
+
+        // Render
+        renderSuggestions(matches, query);
+    });
+
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-box')) {
+            resultsContainer.style.display = 'none';
+        }
+    });
+
+    function renderSuggestions(matches, query) {
+        resultsContainer.innerHTML = '';
+
+        if (matches.length === 0) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        matches.forEach(match => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+
+            // Highlight text
+            const regex = new RegExp(`(${query})`, 'gi');
+            const highlightedName = match.name.replace(regex, '<span class="highlight">$1</span>');
+
+            div.innerHTML = highlightedName;
+
+            div.onclick = () => {
+                selectLocation(match);
+                input.value = match.name;
+                resultsContainer.style.display = 'none';
+            };
+
+            resultsContainer.appendChild(div);
+        });
+
+        resultsContainer.style.display = 'block';
+    }
+}
+
+function selectLocation(dest) {
+    // Zoom map
+    map.flyTo([dest.lat, dest.lng], 10, {
+        animate: true,
+        duration: 1.5
+    });
+
+    // Trigger Popup
+    const marker = markersMap.get(dest.name);
+    if (marker) {
+        setTimeout(() => {
+            marker.fire('click');
+        }, 1600); // Wait for flyTo
+    }
+}
+
+// 6. Algorithm (Haversine)
 function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Earth's radius in km
+    const R = 6371; // Earth radiues in km
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a =
@@ -65,236 +295,9 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-    return distance;
+    return R * c;
 }
 
 function toRad(val) {
     return val * Math.PI / 180;
 }
-
-// Initialize Map
-function initMap() {
-    // Default center before location is found (Chennai roughly)
-    map = L.map('map', {
-        zoomControl: false, // Reposition zoom control
-        attributionControl: false
-    }).setView([13.0827, 80.2707], 13);
-
-    // Add custom attribution
-    L.control.attribution({
-        position: 'bottomright',
-        prefix: false
-    }).addAttribution('&copy; OpenStreetMap contributors | OrbitNav').addTo(map);
-
-    // Add zoom control to top right
-    L.control.zoom({
-        position: 'topright'
-    }).addTo(map);
-
-    // Add OpenStreetMap tiles
-    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-    }).addTo(map);
-
-    // Trigger Geolocation
-    getUserPosition();
-}
-
-// Get User Location
-function getUserPosition() {
-    if (!navigator.geolocation) {
-        alert("Geolocation is not supported by your browser");
-        document.getElementById('loading-overlay').style.display = 'none';
-        return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            // Success
-            userLocation.lat = position.coords.latitude;
-            userLocation.lng = position.coords.longitude;
-
-            // Center map on user
-            map.setView([userLocation.lat, userLocation.lng], 14);
-
-            // Add User Marker
-            if (userMarker) map.removeLayer(userMarker);
-            userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: greenIcon })
-                .addTo(map)
-                .bindPopup("<b>You Are Here</b><br>Live GPS Location").openPopup();
-
-            // Update UI
-            document.getElementById('status-text').innerHTML = "Signal Acquired";
-            document.getElementById('status-text').style.color = "var(--accent-green)";
-            document.getElementById('loading-overlay').style.display = 'none';
-
-            // Populate List
-            renderLocationList();
-        },
-        (error) => {
-            // Error
-            console.error(error);
-            document.getElementById('loading-overlay').style.display = 'none';
-            document.getElementById('status-text').innerHTML = "GPS Error";
-            document.getElementById('status-text').style.color = "var(--accent-red)";
-            alert("Unable to retrieve your location. Please check GPS settings.");
-
-            // Fallback to a default location for demo purposes (Egmore)
-            // userLocation.lat = 13.0815;
-            // userLocation.lng = 80.2605;
-            // initMap would handle this but here we just stop. User needs GPS.
-        },
-        {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        }
-    );
-}
-
-// Render Sidebar List
-function renderLocationList() {
-    const listContainer = document.getElementById('locations-container');
-    listContainer.innerHTML = '';
-
-    destinations.forEach((dest, index) => {
-        // Calculate distance for preview (or hide if purely dynamic)
-        // Let's just list them
-        const li = document.createElement('li');
-        li.className = 'location-item';
-        li.innerHTML = `
-            <div>
-                <div class="loc-name">${dest.name}</div>
-                <div class="loc-coords">${dest.lat.toFixed(4)}, ${dest.lng.toFixed(4)}</div>
-            </div>
-            <div class="loc-dist" id="dist-${index}"></div>
-        `;
-        li.onclick = () => selectDestination(index);
-        listContainer.appendChild(li);
-    });
-}
-
-// Handle Destination Selection
-function selectDestination(index) {
-    const dest = destinations[index];
-
-    // Highlight styling
-    document.querySelectorAll('.location-item').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.location-item')[index].classList.add('active');
-
-    // 1. Calculate Distance
-    const distance = calculateHaversineDistance(
-        userLocation.lat, userLocation.lng,
-        dest.lat, dest.lng
-    );
-
-    // Update Dist Display
-    document.getElementById('distance-box').style.display = 'block';
-    document.getElementById('distance-value').innerText = distance.toFixed(2) + " KM";
-
-    // Cleanup previous map state
-    if (routeLayer) map.removeLayer(routeLayer);
-    if (destinationMarker) map.removeLayer(destinationMarker);
-    if (boundaryCircle) map.removeLayer(boundaryCircle);
-    allMarkersLayerGroup.clearLayers();
-    map.removeLayer(allMarkersLayerGroup);
-
-    // 2. Check Constraint
-    if (distance <= MAX_DISTANCE_KM) {
-        // WITHIN 5KM
-        handleWithinRange(dest);
-    } else {
-        // OUTSIDE 5KM
-        handleOutOfRange(dest, distance);
-    }
-}
-
-// Logic: Within Range
-function handleWithinRange(dest) {
-    // Add Destination Marker
-    destinationMarker = L.marker([dest.lat, dest.lng], { icon: redIcon })
-        .addTo(map)
-        .bindPopup(`<b>${dest.name}</b><br>Destination`);
-
-    // Fetch Route from OSRM
-    fetchRoute(userLocation.lat, userLocation.lng, dest.lat, dest.lng);
-}
-
-// Logic: Out of Range
-function handleOutOfRange(dest, distance) {
-    // Show Alert
-    document.getElementById('alert-modal').style.display = 'block';
-
-    // Draw 5KM Boundary Circle
-    boundaryCircle = L.circle([userLocation.lat, userLocation.lng], {
-        color: '#00f3ff',
-        fillColor: '#00f3ff',
-        fillOpacity: 0.1,
-        radius: 5000 // 5km in meters
-    }).addTo(map);
-
-    // Show ALL markers
-    destinations.forEach(d => {
-        const marker = L.marker([d.lat, d.lng], { icon: blueIcon })
-            .bindPopup(`<b>${d.name}</b>`);
-        allMarkersLayerGroup.addLayer(marker);
-    });
-    allMarkersLayerGroup.addTo(map);
-
-    // Fit bounds to show circle and markers
-    const group = new L.featureGroup([
-        L.marker([userLocation.lat, userLocation.lng]),
-        boundaryCircle
-    ]);
-    map.fitBounds(group.getBounds());
-}
-
-// Fetch OSRM Route
-async function fetchRoute(lat1, lon1, lat2, lon2) {
-    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
-
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
-            alert('Routing service could not find a path.');
-            return;
-        }
-
-        const routeGeoJSON = data.routes[0].geometry;
-
-        // Draw Polyline (Neon Blue)
-        routeLayer = L.geoJSON(routeGeoJSON, {
-            style: {
-                color: '#00f3ff', // Neon Blue
-                weight: 5,
-                opacity: 0.8,
-                lineCap: 'round',
-                lineJoin: 'round',
-                dashArray: '1, 10', // Cool dash animation potential, keeping solid for now
-                dashOffset: '0'
-            }
-        }).addTo(map);
-
-        // Add animation effect via CSS if we wanted, but sticking to solid neon for clarity
-        // Just use simple styling for now.
-        routeLayer.setStyle({ dashArray: null }); // Ensure solid line
-
-        // Fit bounds
-        const bounds = routeLayer.getBounds();
-        map.fitBounds(bounds, { padding: [50, 50] });
-
-    } catch (error) {
-        console.error('Routing Error:', error);
-        alert('Failed to connect to routing service.');
-    }
-}
-
-function closeAlert() {
-    document.getElementById('alert-modal').style.display = 'none';
-}
-
-// Start App
-window.onload = initMap;

@@ -4,67 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OrbitNav - Restricted GPS Navigation</title>
+    <title>OrbitNav - Stargazing Navigation</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <!-- Loading Screen -->
-    <div id="loading-overlay">
-        <div class="loader"></div>
-        <div style="font-size: 1.2rem; color: var(--primary-neon); letter-spacing: 2px;">ORBITNAV</div>
-        <div style="font-size: 0.9rem; color: #8899aa; margin-top: 10px;">Acquiring Satellite Link...</div>
-    </div>
-
-    <!-- Alert Modal -->
-    <div id="alert-modal">
-        <div class="alert-title">Access Denied</div>
-        <div class="alert-message">Destination is outside the 5KM test boundary.</div>
-        <button class="btn-close" onclick="closeAlert()">Acknowledge</button>
-    </div>
-
-    <!-- Main App Container -->
     <div id="app-container">
-
-        <!-- Sidebar Controls -->
-        <div id="control-panel">
-            <h1>OrbitNav</h1>
-            <div class="subtitle">Geospatial Navigation Engine</div>
-            <div class="badge">5KM Test Mode Active</div>
-
-            <div class="status-box">
-                <div class="status-label">Current Status</div>
-                <div class="status-value" id="status-text">Locating...</div>
+        <!-- Search Interface -->
+        <div class="search-wrapper">
+            <div class="brand">
+                <h1>OrbitNav</h1>
+                <span class="subtitle">Stargazing Pathfinder</span>
             </div>
-
-            <div class="status-box" id="distance-box" style="display: none;">
-                <div class="status-label">Estimated Distance</div>
-                <div class="status-value" id="distance-value">-- KM</div>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Search for dark skies..." autocomplete="off">
+                <div id="search-results" class="suggestions-list"></div>
             </div>
-
-            <div
-                style="font-size: 0.8rem; color: #fff; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
-                Select Destination
-            </div>
-
-            <ul class="location-list" id="locations-container">
-                <!-- Location items injected via JS -->
-            </ul>
         </div>
 
-        <!-- Map Container -->
+        <!-- Map -->
         <div id="map"></div>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
+    <!-- Custom JS -->
     <script src="script.js"></script>
 </body>
 

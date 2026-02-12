@@ -177,5 +177,5 @@ This project demonstrates algorithmic thinking combined with real-world geolocat
 **Bhuvanesh M**
 AI-ready Linux Tools & Geospatial Systems Developer
 
-🔗 GitHub: [https://github.com/bhuvanesh-m-dev](https://github.com/bhuvanesh-m-dev)
+🔗 GitHub: [https://github.com/bhuvanesh-m-dev](https://github.com/bhuvanesh-m-dev)  
 🌐 Live Demo: [https://bhuvanesh-m-dev.github.io/orbitnav/](https://bhuvanesh-m-dev.github.io/orbitnav/)

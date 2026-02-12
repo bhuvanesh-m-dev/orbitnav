@@ -1,0 +1,276 @@
+:root {
+    --bg-dark: #02040a;
+    --panel-bg: rgba(10, 15, 30, 0.85);
+    /* Glassmorphism */
+    --primary-neon: #00f3ff;
+    /* Cyan/Blue */
+    --accent-red: #ff3333;
+    /* Red/Alert */
+    --accent-green: #00ff66;
+    /* User Location */
+    --text-main: #ffffff;
+    --text-muted: #8899aa;
+    --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --border-radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden;
+    /* Prevent scrolling, full app feel */
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Astronomy / Dark Space Theme */
+#app-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
+
+/* Sidebar / Overlay Panel */
+#control-panel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 340px;
+    max-height: calc(100vh - 40px);
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    /* Above map */
+    padding: 20px;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+}
+
+h1 {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, var(--primary-neon), #ffffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: var(--bg-dark);
+    background: var(--primary-neon);
+    border-radius: 4px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+}
+
+.status-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.status-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.status-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-neon);
+}
+
+.location-list {
+    list-style: none;
+}
+
+.location-item {
+    padding: 12px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.location-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 243, 255, 0.3);
+}
+
+.location-item.active {
+    background: rgba(0, 243, 255, 0.1);
+    border-color: var(--primary-neon);
+}
+
+.loc-name {
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.loc-coords {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.loc-dist {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--text-muted);
+}
+
+#map {
+    flex-grow: 1;
+    height: 100%;
+    background-color: #0b0e14;
+    /* Fallback */
+    z-index: 0;
+}
+
+/* Dark Mode Map Filter */
+.leaflet-layer,
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out,
+.leaflet-control-attribution {
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
+/* Alert Modal */
+#alert-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 0, 0, 0.95);
+    border: 2px solid var(--accent-red);
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    z-index: 2000;
+    box-shadow: 0 0 50px rgba(255, 51, 51, 0.3);
+    display: none;
+    backdrop-filter: blur(5px);
+}
+
+.alert-title {
+    color: var(--accent-red);
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.alert-message {
+    color: #ffcccc;
+    margin-bottom: 20px;
+}
+
+.btn-close {
+    background: var(--accent-red);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* Loading Overlay */
+#loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-dark);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    flex-direction: column;
+}
+
+.loader {
+    border: 4px solid rgba(0, 243, 255, 0.1);
+    border-left-color: var(--primary-neon);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Marker Styles (Leaflet defaults are overwritten via JS icons if possible, or CSS) */
+
+/* Mobile handling */
+@media (max-width: 768px) {
+    #control-panel {
+        width: calc(100% - 40px);
+        max-height: 40vh;
+        bottom: 20px;
+        top: auto;
+    }
+}
